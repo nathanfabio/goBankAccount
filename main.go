@@ -1,7 +1,8 @@
 package main
 
-import "fmt"
+
 
 func main() {
-	fmt.Println("Hello, World!")
+	server:= API{addr: ":8080"}
+	server.Run()
 }

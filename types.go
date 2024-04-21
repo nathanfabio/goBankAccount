@@ -22,7 +22,6 @@ type Account struct {
 // NewAccount creates a new bank account
 func NewAccount(firstName, lastName string) *Account {
 	return &Account{
-		ID:         rand.Intn(1000),
 		FirstName:  firstName,
 		LastName:   lastName,
 		NumberBank: rand.Int63n(10000),

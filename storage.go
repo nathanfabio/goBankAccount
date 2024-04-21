@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/lib/pq"
 )
@@ -10,6 +11,7 @@ type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
+	GetAccounts() ([]*Account, error)
 	GetAccount(int) (*Account, error)
 }
 
@@ -50,7 +52,15 @@ func (s *PostgresStorage) CreateTable() error {
 	return err
 }
 
-func (s *PostgresStorage) CreateAccount(*Account) error {
+func (s *PostgresStorage) CreateAccount(a *Account) error {
+	query:= `INSERT INTO accounts (first_name, last_name, number_bank, balance, created_at) VALUES ($1, $2, $3, $4, $5)`
+	resp, err:= s.db.Query(query, a.FirstName, a.LastName, a.NumberBank, a.Balance, a.CreateAt)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%+v\n", resp)
+
 	return nil	
 }
 
@@ -64,4 +74,25 @@ func (s *PostgresStorage) DeleteAccount(id int) error {
 
 func (s *PostgresStorage) GetAccount(id int) (*Account, error) {
 	return nil, nil
+}
+
+func (s *PostgresStorage) GetAccounts() ([]*Account, error) {
+	rows, err:= s.db.Query("SELECT * FROM accounts")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	accounts:= []*Account{}
+
+	for rows.Next() {
+		account:= &Account{}
+		if err := rows.Scan(&account.ID, &account.FirstName, &account.LastName, &account.NumberBank, &account.Balance, &account.CreateAt); err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+
+	return accounts, nil
+
 }

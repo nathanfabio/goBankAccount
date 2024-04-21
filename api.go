@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,32 +39,23 @@ func NewAddress(addr string, store Storage) *API {
 // 	}
 // }
 
-// func toGinHandler(h http.HandlerFunc) gin.HandlerFunc {
-// 	return func (c *gin.Context) {
-// 		h.ServeHTTP(c.Writer, c.Request)
-// 	}
-// }
-
 func (a *API) Run() {
 	router:= gin.Default()
-	// router.Handle("GET", "/account", a.handleGetAccount)
-	router.Handle("GET", "/account/{id}", (a.handleGetAccountByID))
 	router.Handle("GET", "/accounts", (a.handleGetAccount))
+	router.Handle("GET", "/account/:id", (a.handleGetAccountByID))
 	router.Handle("POST", "/account", (a.handleCreateAccount))
+	router.Handle("DELETE", "/account/:id", (a.handleDeleteAccount))
+	router.Handle("GET", "/transfer", (a.handleTransfer))
 	
 	log.Println("Listening on", a.addr)
 
 	router.Run(a.addr)
 }
 
-var request Account
-// func (a *API) handleAccount(w http.ResponseWriter, r *http.Request) error {
-// 	return nil
-// }
 func (a *API) handleGetAccount(c *gin.Context) {
 	accounts, err := a.store.GetAccounts()
 	if err != nil {
-		log.Fatal(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 
 	c.JSON(http.StatusOK, accounts)
@@ -72,10 +63,19 @@ func (a *API) handleGetAccount(c *gin.Context) {
 
 func (a *API) handleGetAccountByID(c *gin.Context){
 	id:= c.Param("id")
-	fmt.Println(id)
+	clientID, err:= strconv.Atoi(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account ID"})
+		return
+	}
 
-	c.ShouldBindJSON(&request)
-	c.JSON(http.StatusOK, &request)
+	account, err := a.store.GetAccountByID(clientID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, account)
 }
 
 func (a *API) handleCreateAccount(c *gin.Context) {
@@ -94,10 +94,30 @@ func (a *API) handleCreateAccount(c *gin.Context) {
 	c.JSON(http.StatusOK, account)
 }
 
-func (a *API) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+func (a *API) handleDeleteAccount(c *gin.Context) {
+	id:= c.Param("id")
+	clientID, err:= strconv.Atoi(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account ID"})
+		return
+	}
+
+	if err:= a.store.DeleteAccount(clientID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error deleting account"})
+		return
+	}
+
+
+	c.JSON(http.StatusOK, gin.H{"message": "account deleted"})
 }
 
-func (a *API) handleTransfer(w http.ResponseWriter, r *http.Request) error {
-	return nil
+func (a *API) handleTransfer(c *gin.Context) {
+	transferReq:= Tranfer{}
+	if err:= json.NewDecoder(c.Request.Body).Decode(&transferReq); err!=nil{
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	defer c.Request.Body.Close()
+
+	c.JSON(http.StatusOK, gin.H{"message": "transfer done"})
 }
